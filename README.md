@@ -6,9 +6,7 @@ particular purpose other than learning.
 
 ## Implementation
 
-### Implemented BEPs
-
-Known [BEPs](https://www.bittorrent.org/beps/bep_0000.html) as of 2020-09-11.
+### Implemented [BEPs](https://www.bittorrent.org/beps/bep_0000.html) (list at 2020-09-11)
 
 #### Final and Active Process BEPs
 
