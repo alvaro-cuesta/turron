@@ -1,4 +1,5 @@
 import { decodeDict, Dict } from './bencode'
+import { bytesToUTF8 } from './util'
 
 type Metainfo = {
   announce?: string,
@@ -61,7 +62,7 @@ const _parseMetainfoFile = (dict: Dict): MetainfoFile => {
         throw new Error('Expected "path" fragment to be Bytes')
       }
 
-      return x
+      return bytesToUTF8(x)
     })
 
   return {
@@ -122,7 +123,7 @@ const _parseMetainfoInfo = (dict: Dict): MetainfoInfo => {
     }
 
     return {
-      name,
+      name: bytesToUTF8(name),
       pieceLength,
       pieces,
       length,
@@ -145,7 +146,7 @@ const _parseMetainfoInfo = (dict: Dict): MetainfoInfo => {
       })
 
     return {
-      name,
+      name: bytesToUTF8(name),
       pieceLength,
       pieces,
       files,
@@ -194,10 +195,10 @@ export const parseMetainfo = (buffer: string): Metainfo => {
   }
 
   return {
-    announce,
+    announce: announce && bytesToUTF8(announce),
     info,
-    comment,
-    createdBy,
+    comment: comment && bytesToUTF8(comment),
+    createdBy: createdBy && bytesToUTF8(createdBy),
     creationDate: maybeCreationDate
       ? new Date(maybeCreationDate * 1000)
       : undefined,
