@@ -1,82 +1,54 @@
-const NUMBER_0 = 0x30 // 0
-const NUMBER_9 = 0x39 // 9
+export type Natural = number
 
-const END = 0x65 // e
+export type Integer = number
 
-const INTEGER_START = 0x69 // i
-const INTEGER_NEGATIVE = 0x2d // -
+export type Bytes = string
 
-const BYTES_SEPARATOR = 0x3a // :
+export type List = Array<Primitive>
 
-const LIST_START = 0x6c // l
+export type Dict = { [k: string]: Primitive }
 
-const DICT_START = 0x64 // d
-
-type Natural = number
-
-type Integer = number
-
-type Bytes = Buffer
-
-type BytesLike = Bytes | string
-
-type List = Array<Primitive>
-
-type Dict = Map<Bytes, Primitive>
-
-type DictLike =
-  | Map<Bytes, PrimitiveLike>
-  | Map<string, PrimitiveLike>
-  | Map<Bytes | string, PrimitiveLike>
-  | { [k: string]: PrimitiveLike }
-
-type Primitive =
+export type Primitive =
   | Integer
   | Bytes
   | List
   | Dict
 
-type PrimitiveLike =
-  | Integer
-  | BytesLike
-  | List
-  | DictLike
-
 // Decode
 
-const _decodeNatural = (buffer: Buffer, i: number): [Natural, number] => {
-  if (buffer[i] === NUMBER_0) {
+const _decodeNatural = (buffer: string, i: number): [Natural, number] => {
+  if (buffer[i] === '0') {
     i++
 
-    if (buffer[i] >= NUMBER_0 && buffer[i] <= NUMBER_9) {
-      throw new Error('Leading zero detected')
+    if (buffer[i] >= '0' && buffer[i] <= '9') {
+      throw new Error(`Leading zero detected at ${i - 1}`)
     }
 
     return [0, i]
   }
 
-  if (!(buffer[i] >= NUMBER_0 && buffer[i] <= NUMBER_9)) {
-    throw new Error('Digit expected')
+  if (!(buffer[i] >= '0' && buffer[i] <= '9')) {
+    throw new Error(`Digit expected at ${i}`)
   }
 
   let number = 0
 
-  while (buffer[i] >= NUMBER_0 && buffer[i] <= NUMBER_9) {
-    number = number * 10 + buffer[i] - NUMBER_0
+  while (buffer[i] >= '0' && buffer[i] <= '9') {
+    number = number * 10 + parseInt(buffer[i], 10)
     i++
   }
 
   return [number, i]
 }
 
-const _decodeInteger = (buffer: Buffer, i: number): [Integer, number] => {
-  if (buffer[i] !== INTEGER_START) {
-    throw new Error('Missing INTEGER_START')
+const _decodeInteger = (buffer: string, i: number): [Integer, number] => {
+  if (buffer[i] !== 'i') {
+    throw new Error(`Missing "i" at ${i}`)
   }
   i++
 
   let negative = false
-  if (buffer[i] === INTEGER_NEGATIVE) {
+  if (buffer[i] === '-') {
     negative = true
     i++
   }
@@ -84,13 +56,13 @@ const _decodeInteger = (buffer: Buffer, i: number): [Integer, number] => {
   let number
   ([number, i] = _decodeNatural(buffer, i))
 
-  if (buffer[i] !== END) {
-    throw new Error('Missing END (on Integer)')
+  if (buffer[i] !== 'e') {
+    throw new Error(`Missing "e" (on Integer) at ${i}`)
   }
   i++
 
   if (negative && number === 0) {
-    throw new Error('Negative zero')
+    throw new Error(`Negative zero at ${i}`)
   }
 
   return [
@@ -99,19 +71,21 @@ const _decodeInteger = (buffer: Buffer, i: number): [Integer, number] => {
   ]
 }
 
-const _decodeBytes = (buffer: Buffer, i: number): [Bytes, number] => {
+const _decodeBytes = (buffer: string, i: number): [Bytes, number] => {
   let length
   ([length, i] = _decodeNatural(buffer, i))
 
-  if (buffer[i] !== BYTES_SEPARATOR) {
-    throw new Error('Missing BYTES_SEPARATOR')
+  if (buffer[i] !== ':') {
+    throw new Error(`Missing ":" at ${i}`)
   }
   i++
 
-  return [buffer.slice(i, i + length), i + length]
+  const bytes = buffer.slice(i, i + length)
+
+  return [bytes, i + length]
 }
 
-const _decodePrimitive = (buffer: Buffer, i: number): [Primitive, number] => {
+const _decodePrimitive = (buffer: string, i: number): [Primitive, number] => {
   try {
     return _decodeInteger(buffer, i)
   } catch (_) {}
@@ -128,18 +102,18 @@ const _decodePrimitive = (buffer: Buffer, i: number): [Primitive, number] => {
     return _decodeDict(buffer, i)
   } catch (_) {}
 
-  throw new Error('Expected Primitive')
+  throw new Error(`Expected Primitive at ${i}`)
 }
 
-const _decodeList = (buffer: Buffer, i: number): [List, number] => {
-  if (buffer[i] !== LIST_START) {
-    throw new Error('Missing LIST_START')
+const _decodeList = (buffer: string, i: number): [List, number] => {
+  if (buffer[i] !== 'l') {
+    throw new Error(`Missing "l" at ${i}`)
   }
   i++
 
   let list: Array<Primitive> = []
 
-  while (buffer[i] !== END) {
+  while (buffer[i] !== "e") {
     let primitive
     ([primitive, i] = _decodePrimitive(buffer, i))
 
@@ -150,72 +124,72 @@ const _decodeList = (buffer: Buffer, i: number): [List, number] => {
   return [list, i]
 }
 
-const _decodeDict = (buffer: Buffer, i: number): [Dict, number] => {
-  if (buffer[i] !== DICT_START) {
-    throw new Error('Missing DICT_START')
+const _decodeDict = (buffer: string, i: number): [Dict, number] => {
+  if (buffer[i] !== 'd') {
+    throw new Error(`Missing "d" at ${i}`)
   }
   i++
 
-  let dict = new Map()
+  let dict: Dict = {}
   let lastKey
 
-  while (buffer[i] !== END) {
+  while (buffer[i] !== 'e') {
     let key
     ([key, i] = _decodeBytes(buffer, i))
 
-    if (lastKey && key.compare(lastKey) === 1) {
-      throw new Error('Non-lexicographical order detected')
+    if (lastKey && key < lastKey) {
+      throw new Error(`Non-lexicographical order detected at ${i}`)
     }
 
     let value
     ([value, i] = _decodePrimitive(buffer, i))
 
-    dict.set(key, value)
+    dict[key] = value
   }
   i++
 
   return [dict, i]
 }
 
-export const decodeInteger = (buffer: Buffer, i: number = 0) => {
+export const decodeInteger = (buffer: string, i: number = 0) => {
   let integer
   ([integer, i] = _decodeInteger(buffer, i))
 
   if (i !== buffer.length) {
-    throw new Error('Expected EOF')
+    throw new Error(`Expected EOF at ${i}`)
   }
 
   return integer
 }
 
-export const decodeBytes = (buffer: Buffer, i: number = 0) => {
+export const decodeBytes = (buffer: string, i: number = 0) => {
   let bytes
   ([bytes, i] = _decodeBytes(buffer, i))
 
   if (i !== buffer.length) {
-    throw new Error('Expected EOF')
+    throw new Error(`Expected EOF at ${i}`)
   }
 
   return bytes
 }
 
-export const decodeList = (buffer: Buffer, i: number = 0) => {
+export const decodeList = (buffer: string, i: number = 0) => {
   let list
   ([list, i] = _decodeList(buffer, i))
 
   if (i !== buffer.length) {
-    throw new Error('Expected EOF')
+    throw new Error(`Expected EOF at ${i}`)
   }
 
   return list
 }
 
-export const decodeDict = (buffer: Buffer, i: number = 0) => {
+export const decodeDict = (buffer: string, i: number = 0) => {
   let dict
   ([dict, i] = _decodeDict(buffer, i))
 
   if (i !== buffer.length) {
-    throw new Error('Expected EOF')
+    throw new Error(`Expected EOF at ${i}`)
   }
 
   return dict
@@ -232,37 +206,26 @@ const _encodeNatural = (n: Natural) => {
     throw new Error('Negative natural detected')
   }
 
-  return Buffer.from(n.toString())
+  return n.toString()
 }
 
-export const encodeInteger = (n: Integer): Buffer =>
-  Buffer.concat([
-    Buffer.from([INTEGER_START]),
-    n < 0 ? Buffer.from([INTEGER_NEGATIVE]) : Buffer.from([]),
-    _encodeNatural(Math.abs(n)),
-    Buffer.from([END]),
-  ])
+export const encodeInteger = (n: Integer): string =>
+  `i`
+  + (n < 0 ? '-' : '')
+  + _encodeNatural(Math.abs(n))
+  + 'e'
 
-const _encodeBytes = (bytes: Bytes): Buffer =>
-  Buffer.concat([
-    _encodeNatural(bytes.length),
-    Buffer.from([BYTES_SEPARATOR]),
-    bytes,
-  ])
+export const encodeBytes = (bytes: Bytes): string =>
+  _encodeNatural(bytes.length)
+  + ':'
+  + bytes
 
-export const encodeBytes = (bytes: BytesLike): Buffer =>
-  _encodeBytes(
-    typeof bytes === 'string'
-    ? Buffer.from(bytes, 'utf8')
-    : bytes
-  )
-
-const _encodePrimitive = (primitive: PrimitiveLike): Buffer => {
+const _encodePrimitive = (primitive: Primitive): string => {
   if (typeof primitive === 'number') {
     return encodeInteger(primitive)
   }
 
-  if (typeof primitive === 'string' || primitive instanceof Buffer) {
+  if (typeof primitive === 'string') {
     return encodeBytes(primitive)
   }
 
@@ -277,49 +240,31 @@ const _encodePrimitive = (primitive: PrimitiveLike): Buffer => {
   throw new Error('Expected Primitive')
 }
 
-export const encodeList = (list: List): Buffer =>
-  Buffer.concat([
-    Buffer.from([LIST_START]),
-    ...list.map(_encodePrimitive),
-    Buffer.from([END]),
-  ])
+export const encodeList = (list: List): string =>
+  'l'
+  + list.map(_encodePrimitive).join('')
+  + 'e'
 
-
-const _encodeDict = (dict: Map<Bytes, PrimitiveLike>): Buffer => {
-  const keys = [...dict.keys()]
+export const encodeDict = (dict: Dict): string => {
+  const keys = Object.keys(dict)
     .sort()
 
   const entries = []
 
   for (const key of keys) {
-    const value = dict.get(key)
+    const value = dict[key]
 
     if (value === undefined) {
       continue
     }
 
     entries.push(
-      Buffer.concat([
-        encodeBytes(key),
-        _encodePrimitive(value),
-      ])
+      encodeBytes(key)
+      + _encodePrimitive(value),
     )
   }
 
-  return Buffer.concat([
-    Buffer.from([DICT_START]),
-    ...entries,
-    Buffer.from([END]),
-  ])
-}
-
-export const encodeDict = (dict: DictLike): Buffer => {
-  const entries = dict instanceof Map
-    ? dict.entries()
-    : Object.entries(dict)
-
-  const mappedEntries: [Bytes, PrimitiveLike][] = [...entries]
-    .map(([k, v]) => [Buffer.from(k), v])
-
-  return _encodeDict(new Map(mappedEntries))
+  return 'd'
+    + entries.join('')
+    + 'e'
 }
