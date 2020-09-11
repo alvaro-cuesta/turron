@@ -3,6 +3,10 @@ import {
   decodeBytes,
   decodeList,
   decodeDict,
+  encodeInteger,
+  encodeBytes,
+  encodeList,
+  encodeDict,
 } from './bencode'
 
 describe('decodeInteger', () => {
@@ -253,5 +257,226 @@ describe('decodeDict', () => {
       expect(() => decodeList(Buffer.from('d1:ai1e2:bi2eeEXTRA')))
         .toThrow()
     })
+  })
+})
+
+describe('encodeInteger', () => {
+  it('encodes positive values', () => {
+    expect(encodeInteger(7))
+      .toEqual(Buffer.from('i7e'))
+    expect(encodeInteger(123))
+      .toEqual(Buffer.from('i123e'))
+  })
+
+  it('encodes negative values', () => {
+    expect(encodeInteger(-7))
+      .toEqual(Buffer.from('i-7e'))
+    expect(encodeInteger(-123))
+      .toEqual(Buffer.from('i-123e'))
+  })
+
+  it('encodes zero', () => {
+    expect(encodeInteger(0))
+      .toEqual(Buffer.from('i0e'))
+  })
+
+  describe('errors', () => {
+    it('throws on non-integer numbers', () => {
+      expect(() => encodeInteger(0.5))
+        .toThrow()
+    })
+  })
+})
+
+describe('encodeBytes', () => {
+  it('encodes buffers', () => {
+    expect(encodeBytes(Buffer.from('hello')))
+      .toEqual(Buffer.from('5:hello'))
+  })
+
+  it('encodes emtpy buffers', () => {
+    expect(encodeBytes(Buffer.from('')))
+      .toEqual(Buffer.from('0:'))
+  })
+
+  it('encodes strings', () => {
+    expect(encodeBytes('hello'))
+      .toEqual(Buffer.from('5:hello'))
+  })
+
+  it('encodes emtpy strings', () => {
+    expect(encodeBytes(''))
+      .toEqual(Buffer.from('0:'))
+  })
+})
+
+describe('encodeList', () => {
+  it('encodes integer arrays', () => {
+    expect(encodeList([1, 2]))
+      .toEqual(Buffer.from('li1ei2ee'))
+  })
+
+  it('encodes buffer arrays', () => {
+    expect(encodeList([
+      Buffer.from('123'),
+      Buffer.from('hello'),
+    ]))
+      .toEqual(Buffer.from('l3:1235:helloe'))
+  })
+
+  it('encodes nested arrays', () => {
+    expect(encodeList([
+      [1, 2],
+      [Buffer.from('123'), Buffer.from('hello')],
+    ]))
+      .toEqual(Buffer.from('lli1ei2eel3:1235:helloee'))
+  })
+
+  it('encodes map arrays', () => {
+    expect(encodeList([
+      new Map([
+        [Buffer.from('a'), 1],
+        [Buffer.from('b'), 2],
+      ]),
+      new Map([
+        [Buffer.from('c'), 3],
+        [Buffer.from('d'), 4],
+      ]),
+    ]))
+      .toEqual(Buffer.from('ld1:ai1e1:bi2eed1:ci3e1:di4eee'))
+  })
+
+  it('encodes mixed arrays', () => {
+    expect(encodeList([
+      1,
+      Buffer.from('hello'),
+      [1, 2],
+      new Map([
+        [Buffer.from('a'), 1],
+        [Buffer.from('b'), 2],
+      ]),
+    ]))
+      .toEqual(Buffer.from('li1e5:helloli1ei2eed1:ai1e1:bi2eee'))
+  })
+
+  it('encodes empty arrays', () => {
+    expect(encodeList([]))
+      .toEqual(Buffer.from('le'))
+  })
+})
+
+describe('encodeDict', () => {
+  it('encodes Map with integer values', () => {
+    expect(encodeDict(new Map([
+      [Buffer.from('a'), 1],
+      [Buffer.from('b'), 2],
+    ])))
+      .toEqual(Buffer.from('d1:ai1e1:bi2ee'))
+  })
+
+  it('encodes Map with buffer values', () => {
+    expect(encodeDict(new Map([
+      [Buffer.from('a'), Buffer.from('123')],
+      [Buffer.from('b'), Buffer.from('hello')],
+    ])))
+      .toEqual(Buffer.from('d1:a3:1231:b5:helloe'))
+  })
+
+  it('encodes Map with array values', () => {
+    expect(encodeDict(new Map([
+      [Buffer.from('a'), [1, 2]],
+      [Buffer.from('b'), [3, 4]],
+    ])))
+      .toEqual(Buffer.from('d1:ali1ei2ee1:bli3ei4eee'))
+  })
+
+  it('encodes Map with Map values', () => {
+    expect(encodeDict(new Map([
+      [
+        Buffer.from('a'),
+        new Map([
+          [Buffer.from('b'), 1],
+          [Buffer.from('c'), 2],
+        ])
+      ],
+      [
+        Buffer.from('d'),
+        new Map([
+          [Buffer.from('e'), 3],
+          [Buffer.from('f'), 4],
+        ])
+      ],
+    ])))
+      .toEqual(Buffer.from('d1:ad1:bi1e1:ci2ee1:dd1:ei3e1:fi4eee'))
+  })
+
+  it('encodes empty Map', () => {
+    expect(encodeDict(new Map()))
+      .toEqual(Buffer.from('de'))
+  })
+
+  it('encodes object with integer values', () => {
+    expect(encodeDict({
+      a: 1,
+      b: 2,
+    }))
+      .toEqual(Buffer.from('d1:ai1e1:bi2ee'))
+  })
+
+  it('encodes object with buffer values', () => {
+    expect(encodeDict({
+      a: Buffer.from('123'),
+      b: Buffer.from('hello'),
+    }))
+      .toEqual(Buffer.from('d1:a3:1231:b5:helloe'))
+  })
+
+  it('encodes object with array values', () => {
+    expect(encodeDict({
+      a: [1, 2],
+      b: [3, 4],
+    }))
+      .toEqual(Buffer.from('d1:ali1ei2ee1:bli3ei4eee'))
+  })
+
+  it('encodes object with object values', () => {
+    expect(encodeDict({
+      a: {
+        b: 1,
+        c: 2,
+      },
+      d: {
+        e: 3,
+        f: 4,
+      },
+    }))
+      .toEqual(Buffer.from('d1:ad1:bi1e1:ci2ee1:dd1:ei3e1:fi4eee'))
+  })
+
+  it('encodes empty object', () => {
+    expect(encodeDict({}))
+      .toEqual(Buffer.from('de'))
+  })
+
+  it('encodes Map keys in lexicographical order', () => {
+    expect(encodeDict(new Map([
+      ['d', new Map([['f', 4], ['e', 3]])],
+      ['a', new Map([['c', 2], ['b', 1]])],
+    ])))
+      .toEqual(Buffer.from('d1:ad1:bi1e1:ci2ee1:dd1:ei3e1:fi4eee'))
+  })
+
+  it('encodes object keys in lexicographical order', () => {
+    expect(encodeDict({
+      d: {
+        f: 4,
+        e: 3,
+      },
+      a: {
+        c: 2,
+        b: 1,
+      },
+    }))
+      .toEqual(Buffer.from('d1:ad1:bi1e1:ci2ee1:dd1:ei3e1:fi4eee'))
   })
 })

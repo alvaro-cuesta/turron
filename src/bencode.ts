@@ -18,15 +18,31 @@ type Integer = number
 
 type Bytes = Buffer
 
+type BytesLike = Bytes | string
+
 type List = Array<Primitive>
 
 type Dict = Map<Bytes, Primitive>
+
+type DictLike =
+  | Map<Bytes, PrimitiveLike>
+  | Map<string, PrimitiveLike>
+  | Map<Bytes | string, PrimitiveLike>
+  | { [k: string]: PrimitiveLike }
 
 type Primitive =
   | Integer
   | Bytes
   | List
   | Dict
+
+type PrimitiveLike =
+  | Integer
+  | BytesLike
+  | List
+  | DictLike
+
+// Decode
 
 const _decodeNatural = (buffer: Buffer, i: number): [Natural, number] => {
   if (buffer[i] === NUMBER_0) {
@@ -203,4 +219,107 @@ export const decodeDict = (buffer: Buffer, i: number = 0) => {
   }
 
   return dict
+}
+
+// Encode
+
+const _encodeNatural = (n: Natural) => {
+  if (!Number.isInteger(n)) {
+    throw new Error('Non-integer detected')
+  }
+
+  if (n < 0) {
+    throw new Error('Negative natural detected')
+  }
+
+  return Buffer.from(n.toString())
+}
+
+export const encodeInteger = (n: Integer): Buffer =>
+  Buffer.concat([
+    Buffer.from([INTEGER_START]),
+    n < 0 ? Buffer.from([INTEGER_NEGATIVE]) : Buffer.from([]),
+    _encodeNatural(Math.abs(n)),
+    Buffer.from([END]),
+  ])
+
+const _encodeBytes = (bytes: Bytes): Buffer =>
+  Buffer.concat([
+    _encodeNatural(bytes.length),
+    Buffer.from([BYTES_SEPARATOR]),
+    bytes,
+  ])
+
+export const encodeBytes = (bytes: BytesLike): Buffer =>
+  _encodeBytes(
+    typeof bytes === 'string'
+    ? Buffer.from(bytes, 'utf8')
+    : bytes
+  )
+
+const _encodePrimitive = (primitive: PrimitiveLike): Buffer => {
+  if (typeof primitive === 'number') {
+    return encodeInteger(primitive)
+  }
+
+  if (typeof primitive === 'string' || primitive instanceof Buffer) {
+    return encodeBytes(primitive)
+  }
+
+  if (Array.isArray(primitive)) {
+    return encodeList(primitive)
+  }
+
+  if (primitive instanceof Map || (typeof primitive === 'object' && primitive !== null)) {
+    return encodeDict(primitive)
+  }
+
+  throw new Error('Expected Primitive')
+}
+
+export const encodeList = (list: List): Buffer =>
+  Buffer.concat([
+    Buffer.from([LIST_START]),
+    ...list.map(_encodePrimitive),
+    Buffer.from([END]),
+  ])
+
+
+const _encodeDict = (dict: Map<Bytes, PrimitiveLike>): Buffer => {
+  const keys = [...dict.keys()]
+    .sort()
+
+  const entries = []
+
+  for (const key of keys) {
+    const value = dict.get(key)
+
+    if (value === undefined) {
+      continue
+    }
+
+    entries.push(
+      Buffer.concat([
+        encodeBytes(key),
+        _encodePrimitive(value),
+      ])
+    )
+  }
+
+  return Buffer.concat([
+    Buffer.from([DICT_START]),
+    ...entries,
+    Buffer.from([END]),
+  ])
+}
+
+export const encodeDict = (dict: DictLike): Buffer => {
+  const entries = dict instanceof Map
+    ? dict.entries()
+    : Object.entries(dict)
+
+  const mappedEntries: [Bytes, PrimitiveLike][] = [...entries]
+    .map(([k, v]) => [Buffer.from(k), v])
+
+  return _encodeDict(new Map(mappedEntries))
 }
