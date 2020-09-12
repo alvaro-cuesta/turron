@@ -1,5 +1,6 @@
-import { decodeDict, Dict } from './bencode'
-import { bytesToUTF8 } from './util'
+import crypto from 'crypto'
+import { decodeDict, Dict, encodeDict } from './bencode'
+import { bytesToUTF8, utf8ToBytes } from './util'
 
 type Metainfo = {
   announce?: string,
@@ -112,6 +113,12 @@ const _parseMetainfoInfo = (dict: Dict): MetainfoInfo => {
     pieces.push(maybePieces.slice(20 * i, 20 * (i + 1)))
   }
 
+  const common =  {
+    name: bytesToUTF8(name),
+    pieceLength,
+    pieces,
+  }
+
   // length // files
   if (typeof length !== 'undefined') {
     if (typeof length !== 'number') {
@@ -123,9 +130,7 @@ const _parseMetainfoInfo = (dict: Dict): MetainfoInfo => {
     }
 
     return {
-      name: bytesToUTF8(name),
-      pieceLength,
-      pieces,
+      ...common,
       length,
       files: undefined,
     }
@@ -146,9 +151,7 @@ const _parseMetainfoInfo = (dict: Dict): MetainfoInfo => {
       })
 
     return {
-      name: bytesToUTF8(name),
-      pieceLength,
-      pieces,
+      ...common,
       files,
       length: undefined,
     }
@@ -204,4 +207,36 @@ export const parseMetainfo = (buffer: string): Metainfo => {
       : undefined,
     other,
   }
+}
+
+const _encodeMetainfoInfo = (info: MetainfoInfo): string => {
+  const common = {
+    name: utf8ToBytes(info.name),
+    'piece length': info.pieceLength,
+    pieces: info.pieces.map(utf8ToBytes).join(''),
+  }
+
+  if (info.files === undefined) {
+    return encodeDict({
+      ...common,
+      length: info.length,
+    })
+  } else if (info.length === undefined) {
+    return encodeDict({
+      ...common,
+      files: info.files.map(({ length, path }) => ({
+        length,
+        path: path.map(utf8ToBytes)
+      }))
+    })
+  } else {
+    throw new Error('Unreachable')
+  }
+}
+
+export const getInfoHash = (info: MetainfoInfo): Buffer => {
+  const bytes = _encodeMetainfoInfo(info)
+  const buffer = Buffer.from(bytes, 'latin1')
+
+  return crypto.createHash('sha1').update(buffer).digest()
 }

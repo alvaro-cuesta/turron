@@ -1,7 +1,7 @@
 import fs from 'fs'
 import path from 'path'
 import crypto from 'crypto'
-import { parseMetainfo } from "./metainfo"
+import { parseMetainfo, getInfoHash } from "./metainfo"
 
 const FIXTURE_WORLD_TXT = fs.readFileSync(
   path.join(__dirname, '..', 'fixtures', 'world.txt.torrent'),
@@ -70,5 +70,23 @@ describe('parseMetainfo', () => {
           "url-list": ["https://webtorrent.io/torrents/"],
         }
       })
+  })
+})
+
+describe('getInfoHash', () => {
+  it('works with Big Buck Bunny', () => {
+    const metainfo = parseMetainfo(FIXTURE_BIG_BUCK_BUNNY)
+    const infoHash = getInfoHash(metainfo.info)
+
+    expect(infoHash.toString('hex'))
+      .toEqual('dd8255ecdc7ca55fb0bbf81323d87062db1f6d1c')
+  })
+
+  it('works with hello.txt', () => {
+    const metainfo = parseMetainfo(FIXTURE_WORLD_TXT)
+    const infoHash = getInfoHash(metainfo.info)
+
+    expect(infoHash.toString('hex'))
+      .toEqual('c3241e3400aa8d76b390c3e9b5e5e1da5ec81ec7')
   })
 })
