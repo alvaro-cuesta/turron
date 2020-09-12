@@ -1,6 +1,6 @@
 import crypto from 'crypto'
 import { decodeDict, Dict, encodeDict } from './bencode'
-import { bytesToUTF8, utf8ToBytes } from './util'
+import { bytesToUTF8, utf8ToBytes, sha1, Encoding } from './util'
 
 export type Metainfo = {
   announce?: string,
@@ -251,9 +251,13 @@ const _encodeMetainfoInfo = (info: MetainfoInfo): string => {
   }
 }
 
-export const getInfoHash = (info: MetainfoInfo): Buffer => {
+export function getInfoHash(info: MetainfoInfo): Buffer;
+export function getInfoHash(info: MetainfoInfo, encoding: Encoding): string;
+export function getInfoHash(info: MetainfoInfo, encoding?: Encoding): Buffer | string {
   const bytes = _encodeMetainfoInfo(info)
   const buffer = Buffer.from(bytes, 'binary')
 
-  return crypto.createHash('sha1').update(buffer).digest()
+  return encoding
+    ? sha1(buffer, encoding)
+    : sha1(buffer)
 }

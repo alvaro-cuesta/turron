@@ -1,7 +1,7 @@
 import fs from 'fs'
 import path from 'path'
-import crypto from 'crypto'
 import { parseMetainfo, getInfoHash } from "./metainfo"
+import { sha1 } from './util'
 
 const FIXTURE_WORLD_TXT = fs.readFileSync(
   path.join(__dirname, '..', 'fixtures', 'world.txt.torrent'),
@@ -25,9 +25,7 @@ describe('parseMetainfo', () => {
           pieceLength: 16384,
           length: 12,
           files: undefined,
-          pieces: [
-            crypto.createHash('sha1').update('Hello world!').digest().toString('binary')
-          ],
+          pieces: [ sha1('Hello world!', 'binary') ],
         },
         comment: undefined,
         createdBy: 'qBittorrent v4.1.7',
