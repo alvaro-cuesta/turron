@@ -2,7 +2,7 @@ import crypto from 'crypto'
 import { decodeDict, Dict, encodeDict } from './bencode'
 import { bytesToUTF8, utf8ToBytes } from './util'
 
-type Metainfo = {
+export type Metainfo = {
   announce?: string,
   info: MetainfoInfo,
   comment?: string,
@@ -11,7 +11,7 @@ type Metainfo = {
   other: Dict,
 }
 
-type MetainfoInfo =
+export type MetainfoInfo =
   {
     name: string,
     pieceLength: number,
@@ -19,17 +19,17 @@ type MetainfoInfo =
   }
   & (MetainfoSingle | MetainfoMulti)
 
-type MetainfoSingle = {
+export type MetainfoSingle = {
   length: number,
   files: undefined,
 }
 
-type MetainfoMulti = {
+export type MetainfoMulti = {
   files: MetainfoFile[],
   length: undefined,
 }
 
-type MetainfoFile = {
+export type MetainfoFile = {
   length: number,
   path: string[],
 }
