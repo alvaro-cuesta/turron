@@ -253,7 +253,7 @@ const _encodeMetainfoInfo = (info: MetainfoInfo): string => {
 
 export const getInfoHash = (info: MetainfoInfo): Buffer => {
   const bytes = _encodeMetainfoInfo(info)
-  const buffer = Buffer.from(bytes, 'latin1')
+  const buffer = Buffer.from(bytes, 'binary')
 
   return crypto.createHash('sha1').update(buffer).digest()
 }
