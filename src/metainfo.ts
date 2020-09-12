@@ -57,10 +57,18 @@ const _parseMetainfoFile = (dict: Dict): MetainfoFile => {
     throw new Error('Expected "path" to be List')
   }
 
+  if (maybePath.length === 0) {
+    throw new Error('Path cannot have length 0')
+  }
+
   const path = maybePath
     .map(x => {
       if (typeof x !== 'string') {
         throw new Error('Expected "path" fragment to be Bytes')
+      }
+
+      if (x.length === 0) {
+        throw new Error('Path fragment cannot have length 0')
       }
 
       return bytesToUTF8(x)
@@ -90,7 +98,11 @@ const _parseMetainfoInfo = (dict: Dict): MetainfoInfo => {
 
   // name
   if (typeof name !== 'string') {
-    throw new Error('Expected "name" to be Bytes')
+    throw new Error('Expected info "name" to be Bytes')
+  }
+
+  if (name.length === 0) {
+    throw new Error('Info "name" cannot have length 0')
   }
 
   // piece length
@@ -119,7 +131,7 @@ const _parseMetainfoInfo = (dict: Dict): MetainfoInfo => {
     pieces,
   }
 
-  // length // files
+  // length (not files, single file case)
   if (typeof length !== 'undefined') {
     if (typeof length !== 'number') {
       throw new Error('Expected "length" to be Integer or not exist')
@@ -136,9 +148,14 @@ const _parseMetainfoInfo = (dict: Dict): MetainfoInfo => {
     }
   }
 
+  // files (not length, multi file case)
   if (typeof maybeFiles !== 'undefined') {
     if (!Array.isArray(maybeFiles)) {
       throw new Error('Expected "files" to be List or not exist')
+    }
+
+    if (maybeFiles.length === 0) {
+      throw new Error('"files" in info cannot be empty')
     }
 
     const files = maybeFiles
