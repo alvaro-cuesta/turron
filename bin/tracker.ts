@@ -20,7 +20,7 @@ const peersByInfoHash: { [infoHash: string]: { [peerId: string]: PeerInfo } } = 
 
 app.use(morgan('dev'))
 
-app.get('/stats', (req, res) => {
+app.get('/stats', (_req, res) => {
   res.json(peersByInfoHash)
 })
 

@@ -1,4 +1,3 @@
-import crypto from 'crypto'
 import { decodeDict, Dict, encodeDict } from './bencode'
 import { bytesToUTF8, utf8ToBytes, sha1, Encoding } from './util'
 

@@ -1,4 +1,4 @@
-import { Request, Response, NextFunction, RequestHandler } from "express"
+import { Request, Response, RequestHandler } from "express"
 import { encodeDict } from "./bencode"
 import { encodingToBinary } from "./util"
 
@@ -227,7 +227,7 @@ export const trackerHandler =
             peers: response.peers,
           }))
       } catch (error) {
-        res.status(500)
+        return res.status(500)
           .send(encodeDict({
             'failure reason': error.message || 'internal server error'
           }))
